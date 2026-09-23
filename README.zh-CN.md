@@ -6,6 +6,8 @@
 
 - 使用 `uv` 管理 Python 项目和依赖。
 - FastAPI `POST /api/decide` 调用 TypeSafe Jev `systemone` 接口。
+- 使用 Mutagen 从服务器上的 MP3、FLAC、M4A 等音频文件读取标签，并将决策结果写回原文件。
+- 提供 `POST /api/read` 和 `POST /api/write` 文件标签接口。
 - 自动移除空值并排除 `album_img`，避免把无关内容发送给模型。
 - 仅允许本项目中的可写元数据字段作为 `target_field`。
 - 根据 Jev 的 `probabilities` 或 `score` 选择最高项，并返回 `metadata_updates`。
@@ -30,6 +32,8 @@ npm run dev
 ```
 
 默认前端地址为 `http://localhost:5173`，默认 API 地址为 `http://localhost:8000`。如需修改 API 地址，可设置 `VITE_API_URL`。
+
+前端填写的文件路径是 **FastAPI 所在机器上的路径**，不是浏览器本地路径。读取文件后运行 Jev 决策，再点击“写入文件标签”即可保存 `metadata_updates`。
 
 ## 请求示例
 
@@ -67,4 +71,4 @@ pyproject.toml        uv 项目定义
 
 ## 边界
 
-这是一个最小化演示项目，不包含数据库、登录、批量文件扫描或直接写入音频文件。生产使用前应增加鉴权、请求日志脱敏、限流和文件标签写入层。
+这是一个最小化演示项目，不包含数据库、登录或批量文件扫描。生产使用前应增加鉴权、路径白名单、请求日志脱敏和限流。

@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 import httpx
+from mutagen import File as MutagenFile
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -25,9 +26,17 @@ class Question(BaseModel):
 
 
 class DecisionRequest(BaseModel):
-    metadata: dict[str, Any]
+    metadata: dict[str, Any] = Field(default_factory=dict)
     prompt: str = ""
     questions: dict[str, Question]
+
+
+class PathRequest(BaseModel):
+    path: str = Field(min_length=1)
+
+
+class WriteRequest(PathRequest):
+    updates: dict[str, Any] = Field(min_length=1)
 
 
 app = FastAPI(title="Jev Music Tag", version="0.1.0")
@@ -62,9 +71,70 @@ def validate_questions(questions: dict[str, Question]) -> None:
             raise HTTPException(422, f"{target} 不是允许写入的元数据字段")
 
 
+def load_audio(path: str):
+    if not os.path.isfile(path):
+        raise HTTPException(404, f"音乐文件不存在: {path}")
+    try:
+        audio = MutagenFile(path, easy=True)
+    except Exception as exc:
+        raise HTTPException(422, "音乐文件无法解析或格式暂不支持") from exc
+    if audio is None:
+        raise HTTPException(422, "无法识别音乐文件格式")
+    return audio
+
+
+def normalize_tag_value(value: Any) -> Any:
+    if isinstance(value, (list, tuple)):
+        return value[0] if len(value) == 1 else list(value)
+    return value
+
+
+def audio_metadata(path: str) -> dict[str, Any]:
+    audio = load_audio(path)
+    tags = audio.tags or {}
+    metadata = {key: normalize_tag_value(value) for key, value in tags.items()}
+    info = getattr(audio, "info", None)
+    if info:
+        metadata.update({
+            "duration": round(float(getattr(info, "length", 0) or 0), 2),
+            "bit_rate": getattr(info, "bitrate", None),
+            "sample_rate": getattr(info, "sample_rate", None),
+            "channels": getattr(info, "channels", None),
+        })
+    metadata["filename"] = os.path.basename(path)
+    metadata["path"] = path
+    return metadata
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "jev-music-tag"}
+
+
+@app.post("/api/read")
+def read_metadata(request: PathRequest) -> dict[str, Any]:
+    return {"path": request.path, "metadata": audio_metadata(request.path)}
+
+
+@app.post("/api/write")
+def write_metadata(request: WriteRequest) -> dict[str, Any]:
+    invalid = sorted(set(request.updates) - ALLOWED_SCORE_FIELDS)
+    if invalid:
+        raise HTTPException(422, f"不允许写入字段: {', '.join(invalid)}")
+    audio = load_audio(request.path)
+    if audio.tags is None:
+        try:
+            audio.add_tags()
+        except Exception as exc:
+            raise HTTPException(422, "该格式不支持创建标签") from exc
+    for key, value in request.updates.items():
+        if value is not None:
+            audio[key] = value if isinstance(value, list) else str(value)
+    try:
+        audio.save()
+    except Exception as exc:
+        raise HTTPException(422, "写入元数据失败，请检查文件权限或格式") from exc
+    return {"path": request.path, "metadata": audio_metadata(request.path), "written": request.updates}
 
 
 @app.post("/api/decide")

@@ -6,6 +6,8 @@ A minimal Jev-powered metadata decision workbench. It sends local music metadata
 
 - Python dependencies managed with `uv`.
 - FastAPI `POST /api/decide` calls the TypeSafe Jev `systemone` endpoint.
+- Mutagen reads tags from MP3, FLAC, M4A, and other supported audio files, then writes Jev updates back to the original file.
+- `POST /api/read` and `POST /api/write` expose the file tag operations.
 - Empty values and `album_img` are removed before a document is sent.
 - `target_field` is restricted to writable music metadata fields.
 - The highest-probability (or score) criterion is returned as `metadata_updates`.
@@ -30,6 +32,8 @@ npm run dev
 ```
 
 The default frontend is `http://localhost:5173`; the API is `http://localhost:8000`. Set `VITE_API_URL` to use another API origin.
+
+The file path entered in the UI is resolved on the **FastAPI server**, not in the browser. Read a file, run a Jev decision, then click “写入文件标签” to persist `metadata_updates`.
 
 ## Request example
 
@@ -67,4 +71,4 @@ pyproject.toml        uv project definition
 
 ## Scope
 
-This is intentionally a small demo. It does not include a database, authentication, batch scanning, or direct audio-file tag writing. Add authentication, redacted request logs, rate limiting, and a file-writing layer before production use.
+This is intentionally a small demo. It does not include a database, authentication, or batch scanning. Add authentication, path allowlisting, redacted request logs, and rate limiting before production use.
