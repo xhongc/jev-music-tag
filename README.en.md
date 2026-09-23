@@ -2,6 +2,8 @@
 
 A minimal Jev-powered metadata decision workbench. It sends local music metadata and score questions to Jev, then returns fields that can be written back to a track. The project intentionally contains only one FastAPI decision endpoint and one React page, making it useful for testing prompts and field mapping.
 
+![Jev Music Tag interface](image.png)
+
 ## Features
 
 - Python dependencies managed with `uv`.
@@ -22,6 +24,8 @@ cp .env.example .env
 uv sync
 uv run uvicorn backend.main:app --reload --port 8000
 ```
+
+Start the backend with `uv run uvicorn`, rather than a system-level `uvicorn`, so the project dependencies such as `mutagen` are available.
 
 In another terminal:
 

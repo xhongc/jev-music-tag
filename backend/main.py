@@ -93,6 +93,17 @@ def audio_metadata(path: str) -> dict[str, Any]:
     audio = load_audio(path)
     tags = audio.tags or {}
     metadata = {key: normalize_tag_value(value) for key, value in tags.items()}
+    # EasyID3 does not expose every raw ID3 frame; read unsynchronised lyrics
+    # explicitly so the common USLT frame is visible in the user-facing card.
+    if "lyrics" not in metadata:
+        try:
+            raw_audio = MutagenFile(path, easy=False)
+            raw_tags = getattr(raw_audio, "tags", None)
+            lyric_frames = raw_tags.getall("USLT") if raw_tags else []
+            if lyric_frames:
+                metadata["lyrics"] = lyric_frames[0].text
+        except Exception:
+            pass
     info = getattr(audio, "info", None)
     if info:
         metadata.update({
